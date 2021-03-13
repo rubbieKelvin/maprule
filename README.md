@@ -1,0 +1,2 @@
+# Maprule
+value validating library
