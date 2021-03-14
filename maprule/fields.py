@@ -64,6 +64,10 @@ class Dictionary(Field):
 		if not res: return False
 		if res and other is None: return True
 
+		# check if all keys in other are in self.dictionary
+		if not set(other.keys()).issubset(self.dictionary.keys()):
+			return False
+
 		# currently looping through the validation mapping
 		for key, value in self.dictionary.items():
 			value: Field
