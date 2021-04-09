@@ -6,6 +6,10 @@ value validating library
 python -m pip install -U maprule
 ```
 
+### Update
+- __v0.2.0__: added error tracking
+
+
 ## Usage
 ```python
 from maprule import fields

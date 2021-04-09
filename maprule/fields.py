@@ -1,24 +1,44 @@
 class Field:
-	def __init__(self, nullable:bool=False, validate=None):
+	def __init__(self, nullable:bool=False, validate=None, validation_error:str=None, name:str="value"):
+		self.name = name
+		self.error = None
 		self.type = object
 		self.nullable = nullable
+		self.validation_error = validation_error
 		self.validate = validate or (lambda x:True)
 
 	def compare(self, other) -> bool:
 		if other is None and self.nullable:
 			return True
-		return type(other) == self.type and self.validate(other)
+
+		if other is None and (not self.nullable):
+			# null specific validaion
+			self.error = f"{self.name} should not be null"
+			return False
+
+		res = True
+		
+		# check 1
+		res &= type(other) == self.type
+		if not res:
+			self.error = f"{self.name} has invalid type"
+			return res
+
+		# check 2
+		res &= self.validate(other)
+		if not res: self.error = self.validation_error
+		return res
 
 
 class Boolean(Field):
-	def __init__(self, nullable: bool=False, validate=None):
-		super().__init__(nullable=nullable, validate=validate)
+	def __init__(self, **kwargs):
+		super().__init__(**kwargs)
 		self.type = bool
 
 
 class Integer(Field):
-	def __init__(self, minimum:int=None, maximum:int=None, nullable: bool=False, validate=None):
-		super().__init__(nullable=nullable, validate=validate)
+	def __init__(self, minimum:int=None, maximum:int=None, **kwargs):
+		super().__init__(**kwargs)
 		self.type = int
 		self.minimum = -100_00_000 if minimum == None else minimum
 		self.maximum = 100_00_000 if maximum == None else maximum
@@ -28,14 +48,20 @@ class Integer(Field):
 		if not res: return False
 		if res and other is None: return True
 
+		# check 1
 		res &= other >= self.minimum
+		if not res: self.error = f"{self.name} should be greater than {self.minimum}"
+
+		# check 2
 		res &= other <= self.maximum
+		if not res: self.error = f"{self.name} should be less than {self.maximum}"
+
 		return res
 
 
 class String(Field):
-	def __init__(self, min_length:int=None, max_length:int=None, nullable: bool=False, validate=None):
-		super().__init__(validate=validate, nullable=nullable)
+	def __init__(self, min_length:int=None, max_length:int=None, **kwargs):
+		super().__init__(**kwargs)
 		self.type = str
 		self.min_length = min_length
 		self.max_length = max_length
@@ -45,14 +71,20 @@ class String(Field):
 		if not res: return False
 		if res and other is None: return True
 
+		# check 1
 		res &= len(other) >= (self.min_length or 0)
+		if not res: self.error = f"{self.name} should have greater than or {self.min_length} characters"
+
+		# check 2
 		res &= len(other) <= (self.max_length or 100_000_000)
+		if not res: self.error = f"{self.name} should have less than or {self.max_length} characters"
+
 		return res
 
 
 class Dictionary(Field):
-	def __init__(self, value: dict, nullable: bool=False, validate=None):
-		super().__init__(nullable=nullable, validate=validate)
+	def __init__(self, value: dict, **kwargs):
+		super().__init__(**kwargs)
 		self.type = dict
 		self.dictionary = value
 
@@ -66,6 +98,13 @@ class Dictionary(Field):
 
 		# check if all keys in other are in self.dictionary
 		if not set(other.keys()).issubset(self.dictionary.keys()):
+			# check 1
+			# check for extra keys
+			extra = set(other.keys()) - set(self.dictionary.keys())
+			for i in extra:
+				self.error = f"{self.name} has an unnecessary key \"{i}\""
+				break
+
 			return False
 
 		# currently looping through the validation mapping
@@ -73,15 +112,20 @@ class Dictionary(Field):
 			value: Field
 
 			# compare current value to value on the otherside
+			value.name = key
 			res &= value.compare(other.get(key))
-			
+
 			# save loop time by breaking when necessary
-			if not res: break
+			if not res:
+				self.error = value.error
+				break
+
 		return res
 
+
 class Array(Field):
-	def __init__(self, itemtype: Field, nullable: bool=False, validate=None):
-		super().__init__(nullable=nullable, validate=validate)
+	def __init__(self, itemtype: Field, **kwargs):
+		super().__init__(**kwargs)
 		self.type = list
 		self.itemtype = itemtype
 
@@ -99,8 +143,15 @@ class Array(Field):
 
 
 class Any(Field):
-	def __init__(self):
-		pass
+	"""ignores validation. if types are provided, data is to match any of the types"""
+	def __init__(self, types=[]):
+		super().__init__()
+		self.types = types
 
-	def compare(self, other):
+	def compare(self, other) -> bool:
+		if len(self.types) > 0:
+			res = True
+			for t_ in self.types:
+					res &= type(other) == t_
+			return res
 		return True
