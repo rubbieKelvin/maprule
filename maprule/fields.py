@@ -6,6 +6,7 @@ class Field:
 		self.nullable = nullable
 		self.validation_error = validation_error
 		self.validate = validate or (lambda x:True)
+		self.parent = None
 
 	def compare(self, other) -> bool:
 		if other is None and self.nullable:
@@ -113,6 +114,7 @@ class Dictionary(Field):
 
 			# compare current value to value on the otherside
 			value.name = key
+			value.parent = other
 			res &= value.compare(other.get(key))
 
 			# save loop time by breaking when necessary
@@ -152,6 +154,6 @@ class Any(Field):
 		if len(self.types) > 0:
 			res = True
 			for t_ in self.types:
-					res &= type(other) == t_
+				res |= type(other) == t_
 			return res
 		return True
