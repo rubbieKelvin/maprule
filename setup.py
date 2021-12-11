@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name='maprule',  
-    version='1.0.0',
+    version='1.1.0',
     author="Rubbie Kelvin",
     author_email="dev.rubbie@gmail.com",
     description="package for validating values",
